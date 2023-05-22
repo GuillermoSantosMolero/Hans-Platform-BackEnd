@@ -1,0 +1,8 @@
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+
+tmp/
+questions/
+session_log/
