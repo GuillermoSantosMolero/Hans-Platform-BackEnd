@@ -1,10 +1,7 @@
 import sys
 from argparse import ArgumentParser
-
-from PyQt5.QtWidgets import QApplication
-
+from .services import start_services,stop_services
 from .context import AppContext
-from .gui import ServerGUI
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -16,16 +13,8 @@ if __name__ == '__main__':
                         default=AppContext.args.mqtt_port)
     AppContext.args = parser.parse_args()
     AppContext.reload_questions()
-
-    app = QApplication(sys.argv)
-
-    gui = ServerGUI()
-    gui.setupUI()
-    gui.show()
-
+   
     try:
-        app.exec()
+        start_services();
     except KeyboardInterrupt:
-        pass
-    finally:
-        gui.shutdown()
+        stop_services();

@@ -5,8 +5,6 @@ from io import TextIOBase
 import time
 from typing import Callable, Dict, Union
 
-from PyQt5.QtCore import QElapsedTimer, QObject, pyqtSignal
-
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
@@ -80,7 +78,7 @@ class SessionCommunicator(MQTTClient):
         if self.on_participant_update:
             self.on_participant_update(client_id, payload.get('data', {}))
 
-class Session(QObject):
+class Session():
     '''
         Contains all attributes, methods and events to handle a SWARM Session.
     '''
@@ -93,61 +91,9 @@ class Session(QObject):
         #       waiting for clients to get ready. This would be useful for the GUI
         #       to check if the session can start or not
 
-    on_status_changed = pyqtSignal(QObject, Status)
-    '''
-        `on_status_changed(session: Session, status: Session.Status)`
-
-        Emitted when the session status changes.
-    '''
-    on_connection_status_changed = pyqtSignal(QObject, SessionCommunicator.Status)
-    '''
-        `on_connection_status_changed(session: Session, status: SessionCommunicator.Status)`
-
-        Emitted when the session MQTT communication changed its state.
-    '''
-
-    on_question_notified = pyqtSignal(QObject, bool)
-    '''
-        `on_question_notified(session: Session, success: bool)`
-
-        Emitted when the question setup event was sent. The `success`
-        param indicates whether the event was successfully published or not.
-    '''
-
-    on_participant_joined = pyqtSignal(QObject, Participant)
-    '''
-        `on_participant_joined(session: Session, participant: Participant)`
-
-        Emitted when the a new participant joins the session.
-    '''
-    on_participants_ready_changed = pyqtSignal(int, int, int)
-    '''
-        `on_participants_ready_changed(ready_count: int, total_count: int)`
-
-        Emitted when the number of ready participants changed.
-    '''
-    
-    on_start = pyqtSignal(QObject, bool)
-    '''
-        `on_start(session: Session, started: bool)`
-
-        Emitted when the start event was sent. The `started` param indicates
-        whether the event was successfully published or not.
-    '''
-
-    on_stop = pyqtSignal(QObject, bool)
-    '''
-        `on_stop(session: Session, stopped: bool)`
-
-        Emitted when the stop event was sent. The `stopped` param indicates
-        whether the event was successfully published or not.
-    '''
-
     def __init__(self):
         if ctx.AppContext.mqtt_broker is None:
             raise RuntimeError("MQTT broker not started")
-
-        QObject.__init__(self)
 
         Session.last_id += 1
         self.id = Session.last_id
@@ -157,7 +103,6 @@ class Session(QObject):
         self.participants: Dict[Participant] = {}
         self.log_file: TextIOBase = None
         self.resume_file: TextIOBase = None
-        self.timer = QElapsedTimer()
         self.last_session_time = None
         self.target_date = None
         self.answers = {}

@@ -1,9 +1,7 @@
 from enum import Enum
 
-from PyQt5.QtCore import QObject, pyqtSignal
 
-
-class Participant(QObject):
+class Participant():
     last_id = 0
 
     class Status(Enum):
@@ -12,10 +10,7 @@ class Participant(QObject):
         ACTIVE = 'active'
         OFFLINE = 'offline'
 
-    on_status_changed = pyqtSignal(QObject, Status)
-
     def __init__(self, username):
-        QObject.__init__(self)
         Participant.last_id += 1
         self.id = Participant.last_id
         self.username = username

@@ -3,20 +3,16 @@ from threading import Thread
 
 from flask import (Flask, jsonify, redirect, request, send_file,
                    send_from_directory)
-from PyQt5.QtCore import QObject, pyqtSignal
 from werkzeug.serving import make_server
 
 from src.context import AppContext, Participant, Session
 
 QUESTIONS_FOLDER = Path('questions')
 
-class ServerAPI(Thread, QObject):
-    on_start = pyqtSignal()
-    on_session_created = pyqtSignal(Session)
+class ServerAPI(Thread):
 
-    def __init__(self, host='0.0.0.0', port=5000):
+    def __init__(self, host='0.0.0.0', port=80):
         Thread.__init__(self)
-        QObject.__init__(self)
         self.app = Flask(__name__, static_folder='../../../client/build')
 
         @self.app.route('/api/session/<int:session_id>', methods=['GET'])
@@ -185,7 +181,6 @@ class ServerAPI(Thread, QObject):
         self.ctx.push()
 
     def run(self):
-        self.on_start.emit()
         self.server.serve_forever()
 
     def shutdown(self):

@@ -22,8 +22,5 @@ def start_services(
     print("Services up and running")
 
 def stop_services():
-    if ctx.AppContext.mqtt_broker:
-        ctx.AppContext.mqtt_broker.stop()
-
-    if ctx.AppContext.api_service:
-        ctx.AppContext.api_service.shutdown()
+    ctx.AppContext.api_service.shutdown()
+    ctx.AppContext.mqtt_broker.stop()
