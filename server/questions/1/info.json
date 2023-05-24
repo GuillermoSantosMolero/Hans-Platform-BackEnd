@@ -1,0 +1,10 @@
+{
+    "question": "Classify this tissue",
+    "answers": [
+        "Non-tumoral stroma",
+        "Tumoral stroma",
+        "Non-tumoral cells",
+        "Tumoral cells",
+        "Adipose"
+    ]
+}

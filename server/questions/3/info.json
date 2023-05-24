@@ -1,0 +1,9 @@
+{
+    "question": "<question 3 prompt>",
+    "answers": [
+        "Answer 1",
+        "Answer 2",
+        "Answer 3"
+    ],
+    "image": "https://picsum.photos/500"
+}

@@ -1,0 +1,23 @@
+{
+    "time": "2023-04-25T16:28:20.513280",
+    "id": 1,
+    "question": 5,
+    "duration": 30,
+    "participants": [
+        {
+            "id": 1,
+            "username": "g1",
+            "status": "ready"
+        },
+        {
+            "id": 2,
+            "username": "g2",
+            "status": "ready"
+        },
+        {
+            "id": 3,
+            "username": "g3",
+            "status": "ready"
+        }
+    ]
+}
