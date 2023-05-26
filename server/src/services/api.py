@@ -1,6 +1,5 @@
 from pathlib import Path
 from threading import Thread
-
 from flask import (Flask, jsonify, redirect, request, send_file,
                    send_from_directory)
 from werkzeug.serving import make_server
@@ -11,10 +10,9 @@ QUESTIONS_FOLDER = Path('questions')
 
 class ServerAPI(Thread):
 
-    def __init__(self, host='0.0.0.0', port=80):
+    def __init__(self, host='0.0.0.0', port=8080):
         Thread.__init__(self)
         self.app = Flask(__name__, static_folder='../../../client/build')
-
         @self.app.route('/api/session/<int:session_id>', methods=['GET'])
         def api_session_handle_get(session_id: int):
             session = AppContext.sessions.get(session_id, None)

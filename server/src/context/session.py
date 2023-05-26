@@ -123,7 +123,6 @@ class Session():
     @status.setter
     def status(self, status: Status):
         self._status = status
-        self.on_status_changed.emit(self, status)
 
     @property
     def active_question(self):
@@ -134,7 +133,6 @@ class Session():
         for participant in self.participants.values():
             if(participant.status!=Participant.Status.OFFLINE):
                 participant.status = Participant.Status.JOINED
-        self.on_participants_ready_changed.emit(0,self.offline_participants_count, len(self.participants))
 
         if question is None or isinstance(question, Question):
             self._question = question
@@ -146,8 +144,7 @@ class Session():
             json.dumps({
                 'type': 'setup',
                 'question_id': self._question.id if question is not None else None
-            }),
-            lambda success: self.on_question_notified.emit(self, success)
+            })
         )
 
     @property
@@ -185,7 +182,6 @@ class Session():
             participant = Participant(username)
             self.participants[participant.id] = participant
             participantReturn = participant
-            self.on_participant_joined.emit(self, participant)
         return participantReturn
 
     def remove_participant(self, participant_id: int):
@@ -194,12 +190,6 @@ class Session():
             print(f"ERROR: Participant [id={participant_id}] not found in Session [id={self.id}]")
             return
         participant.status = Participant.Status.OFFLINE
-        self.on_participants_ready_changed.emit(
-            self.ready_participants_count,
-            self.offline_participants_count,
-            len(self.participants)
-        )
-
 
     def participant_ready_handler(self, participant_id: int):
         participant = self.participants.get(participant_id, None)
@@ -219,15 +209,9 @@ class Session():
         if(participant.status == Participant.Status.JOINED):
             participant.status = Participant.Status.READY
             checkSessionStatus()
-        self.on_participants_ready_changed.emit(
-            self.ready_participants_count,
-            self.offline_participants_count,
-            len(self.participants)
-        )
     
     def start(self) -> bool:
         if self._question is None:
-            self.on_start.emit(self, False)
             return
 
         # TODO: This should be done asynchronously
@@ -247,7 +231,7 @@ class Session():
             self.log_file = open(log_folder / 'log.csv', 'w')
             self.resume_file = open(log_folder / 'resume.csv', 'w')
             self.status = Session.Status.ACTIVE
-            self.on_start.emit(self, success)
+
         self.target_date = int(round(time.time() * 1000))+ self.duration*1000
         self.communicator.publish(
             f'swarm/session/{self.id}/control',
@@ -261,7 +245,6 @@ class Session():
     def stop(self):
         def callback(success):
             self.status = Session.Status.WAITING
-            self.on_stop.emit(self, success)
 
         log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
         with open(log_folder / 'session.json', 'r+') as file:

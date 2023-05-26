@@ -24,7 +24,6 @@ class Participant():
     def status(self, status):
         if status != self._status:
             self._status = status
-            self.on_status_changed.emit(self, status)
 
     @property
     def as_dict(self):
