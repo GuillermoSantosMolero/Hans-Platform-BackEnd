@@ -12,7 +12,7 @@ SESSION_LOG_FOLDER = Path('session_log')
 class AppContext:
     args = Namespace(
         mqtt_port=9001,
-        api_port=80,
+        api_port=8080,
     )
 
     mqtt_broker = None

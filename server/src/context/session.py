@@ -23,10 +23,14 @@ class SessionCommunicator(MQTTClient):
 
         self.on_status_changed: Callable[[SessionCommunicator.Status], None] = None
         self.on_participant_ready: Callable[[int], None] = None
+        self.on_session_start: Callable[[None]] = None
+        self.on_session_stop: Callable[[None]] = None
+        self.on_setup_question: Callable[[int]] = None
         self.on_participant_update: Callable[[int, dict]] = None
 
         MQTTClient.__init__(self, host, port)
         self.client.message_callback_add('swarm/session/+/control/+', self.control_message_handler)
+        self.client.message_callback_add('swarm/session/+/control', self.control_admin_message_handler)
         self.client.message_callback_add('swarm/session/+/updates/+', self.updates_message_handler)
 
     @property
@@ -53,13 +57,13 @@ class SessionCommunicator(MQTTClient):
         self.subscribe(f"swarm/session/{self.session_id}/#", callback)
 
     def control_message_handler(self, client, obj, msg):
+        print(f"El mensaje recibido contiene lo siguiente: {msg.payload}")
         client_id = int(msg.topic.split('/')[-1])
         print(f"[session {self.session_id}] CONTROL (client={client_id}): {msg.payload}")
 
         payload = json.loads(msg.payload)
         msg_type = payload.get('type', '')
-
-        if msg_type == 'ready' and self.on_participant_ready:
+        if msg_type == 'ready':
             # TODO: Participants should also notify their configured question_id and duration,
             #       so the server can check if their ready state matches de current session or
             #       is older (i.e. the question has changed twice and the participant still has
@@ -70,6 +74,25 @@ class SessionCommunicator(MQTTClient):
             print("Unknown message received in control topic")
             # TODO: Implement a 'keep-alive' mechanism: participants must send keep-alive messages
             #       periodically so the server can determine if they have left without notifying
+
+    def control_admin_message_handler(self, client, obj, msg):
+        print(f"El mensaje admin recibido contiene lo siguiente: {msg.payload}")
+
+        payload = json.loads(msg.payload)
+        msg_type = payload.get('type', '')
+        if msg_type == 'setup':
+            print("Se tramita cómo tipo setup")
+            self.on_setup_question(int(payload.get('question_id','')));
+        else:
+            if msg_type == 'start':
+                self.on_session_start();
+            else:
+                if msg_type == 'stop':
+                    self.on_session_stop();
+                else:
+                    print("Unknown message received in control topic")
+                    # TODO: Implement a 'keep-alive' mechanism: participants must send keep-alive messages
+                    #       periodically so the server can determine if they have left without notifying
 
     def updates_message_handler(self, client, obj, msg):
         client_id = int(msg.topic.split('/')[-1])
@@ -108,9 +131,12 @@ class Session():
         self.answers = {}
 
         self.communicator = SessionCommunicator(self.id, port=ctx.AppContext.mqtt_broker.port)
-        self.communicator.on_status_changed = lambda status: self.on_connection_status_changed.emit(self, status)
         self.communicator.on_participant_ready = self.participant_ready_handler
         self.communicator.on_participant_update = self.participant_update_handler
+        self.communicator.on_session_start = self.session_start_handler
+        self.communicator.on_setup_question = self.active_question
+        self.communicator.on_session_stop = self.session_stop_handler
+
         self.communicator.start()
 
     def __eq__(self, other):
@@ -123,32 +149,6 @@ class Session():
     @status.setter
     def status(self, status: Status):
         self._status = status
-        self.on_status_changed.emit(self, status)
-
-    @property
-    def active_question(self):
-        return self._question
-
-    @active_question.setter
-    def active_question(self, question: Union[int, Question]):
-        for participant in self.participants.values():
-            if(participant.status!=Participant.Status.OFFLINE):
-                participant.status = Participant.Status.JOINED
-        self.on_participants_ready_changed.emit(0,self.offline_participants_count, len(self.participants))
-
-        if question is None or isinstance(question, Question):
-            self._question = question
-        else:
-            self._question = ctx.AppContext.questions[question]
-
-        self.communicator.publish(
-            f'swarm/session/{self.id}/control',
-            json.dumps({
-                'type': 'setup',
-                'question_id': self._question.id if question is not None else None
-            }),
-            lambda success: self.on_question_notified.emit(self, success)
-        )
 
     @property
     def ready_participants_count(self):
@@ -185,7 +185,6 @@ class Session():
             participant = Participant(username)
             self.participants[participant.id] = participant
             participantReturn = participant
-            self.on_participant_joined.emit(self, participant)
         return participantReturn
 
     def remove_participant(self, participant_id: int):
@@ -219,20 +218,17 @@ class Session():
         if(participant.status == Participant.Status.JOINED):
             participant.status = Participant.Status.READY
             checkSessionStatus()
-        self.on_participants_ready_changed.emit(
-            self.ready_participants_count,
-            self.offline_participants_count,
-            len(self.participants)
-        )
-    
-    def start(self) -> bool:
-        if self._question is None:
-            self.on_start.emit(self, False)
-            return
 
-        # TODO: This should be done asynchronously
+    def active_question(self, question: int):
+        print(type(question))
+        if question in ctx.AppContext.questions:
+            self._question = ctx.AppContext.questions.get(question)
+        else:
+            print("No existe una pregunta asociada a ese id")
+
+    def session_start_handler(self) -> bool:
+        print("Hace la llamada a session_start_handler")
         self.last_session_time = datetime.now()
-        self.timer.restart()
         log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
         log_folder.mkdir(parents=True, exist_ok=True)
         with open(log_folder / 'session.json', 'w') as f:
@@ -243,25 +239,13 @@ class Session():
                 'duration': self.duration
             }, f, indent=4)
 
-        def callback(success):
-            self.log_file = open(log_folder / 'log.csv', 'w')
-            self.resume_file = open(log_folder / 'resume.csv', 'w')
-            self.status = Session.Status.ACTIVE
-            self.on_start.emit(self, success)
-        self.target_date = int(round(time.time() * 1000))+ self.duration*1000
-        self.communicator.publish(
-            f'swarm/session/{self.id}/control',
-            json.dumps({
-                'type': 'start',
-                'targetDate': self.target_date
-            }),
-            callback
-        )
+        self.log_file = open(log_folder / 'log.csv', 'w')
+        self.resume_file = open(log_folder / 'resume.csv', 'w')
+        self.status = Session.Status.ACTIVE
 
-    def stop(self):
+    def session_stop_handler(self):
         def callback(success):
             self.status = Session.Status.WAITING
-            self.on_stop.emit(self, success)
 
         log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
         with open(log_folder / 'session.json', 'r+') as file:
@@ -269,14 +253,6 @@ class Session():
             data['participants'] = ([participant.as_dict for participant in self.participants.values()])
             file.seek(0)
             json.dump(data, file, indent=4)
-        
-        self.communicator.publish(
-            f'swarm/session/{self.id}/control',
-            json.dumps({
-                'type': 'stop',
-            }),
-            callback
-        )
 
         if self.log_file:
             self.log_file.close()

@@ -11,7 +11,7 @@ QUESTIONS_FOLDER = Path('questions')
 
 class ServerAPI(Thread):
 
-    def __init__(self, host='0.0.0.0', port=80):
+    def __init__(self, host='0.0.0.0', port=8080):
         Thread.__init__(self)
         self.app = Flask(__name__, static_folder='../../../client/build')
 

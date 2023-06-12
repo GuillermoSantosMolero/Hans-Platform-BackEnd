@@ -1,5 +1,4 @@
 paho-mqtt==1.6.1
 Flask==2.2.2
-PyQt5==5.15.7
 #opencv-python-headless==4.7.0.68
 -e .    # Install the project as an editable package

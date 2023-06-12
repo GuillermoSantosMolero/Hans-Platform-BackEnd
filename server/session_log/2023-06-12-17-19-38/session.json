@@ -1,0 +1,13 @@
+{
+    "time": "2023-06-12T17:19:38.066685",
+    "id": 2,
+    "question": 1,
+    "duration": 10,
+    "participants": [
+        {
+            "id": 1,
+            "username": "g2",
+            "status": "ready"
+        }
+    ]
+}
