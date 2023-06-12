@@ -193,12 +193,6 @@ class Session():
             print(f"ERROR: Participant [id={participant_id}] not found in Session [id={self.id}]")
             return
         participant.status = Participant.Status.OFFLINE
-        self.on_participants_ready_changed.emit(
-            self.ready_participants_count,
-            self.offline_participants_count,
-            len(self.participants)
-        )
-
 
     def participant_ready_handler(self, participant_id: int):
         participant = self.participants.get(participant_id, None)
