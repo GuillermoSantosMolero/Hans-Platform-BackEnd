@@ -1,5 +1,6 @@
 from pathlib import Path
 from threading import Thread
+import os, zipfile
 from flask import (Flask, jsonify, redirect, request, send_file,
                    send_from_directory)
 from werkzeug.serving import make_server
@@ -173,11 +174,43 @@ class ServerAPI(Thread):
             session = Session()
             AppContext.sessions[session.id] = session
             return jsonify(session.as_dict)
+        @self.app.route('/api/download_log/<path:folder_path>')
+        @self.app.route('/api/download_log/<path:folder_path>')
+        def download_log(folder_path):
+            zip_filepath = generate_zip(folder_path)
 
+            if zip_filepath and os.path.isfile(zip_filepath):
+                return send_from_directory(os.path.abspath(os.path.dirname(zip_filepath)), os.path.basename(zip_filepath), as_attachment=True)
+            else:
+                return "Error al generar el archivo ZIP", 500
+
+        def generate_zip(folder_path):
+            try:
+                zip_filename = folder_path + ".zip"
+                folder_path = "./session_log/" + folder_path
+                zip_path = os.path.join("./session_log/zips", zip_filename)  # Ruta completa del archivo ZIP
+                with zipfile.ZipFile(zip_path, "w") as zipf:
+                    for root, _, files in os.walk(folder_path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            zipf.write(file_path, os.path.relpath(file_path, folder_path))
+
+                return zip_path
+            except Exception as e:
+                print(f"Error al generar el archivo ZIP: {str(e)}")
+                return None
+
+        @self.app.route('/api/list_logs')
+        def list_logs():
+            folder_path = './session_log'
+            logs = [name for name in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, name))]
+
+            return jsonify(logs=logs)
+        
         self.server = make_server(host, port, self.app, threaded=True)
         self.ctx = self.app.app_context()
         self.ctx.push()
-
+        
     def run(self):
         self.server.serve_forever()
 
