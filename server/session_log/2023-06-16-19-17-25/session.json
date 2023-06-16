@@ -1,17 +1,17 @@
 {
-    "time": "2023-05-08T17:27:19.794420",
+    "time": "2023-06-16T19:17:25.766085",
     "id": 2,
-    "question": 1,
+    "question": 3,
     "duration": 10,
     "participants": [
         {
-            "id": 2,
-            "username": "g1",
+            "id": 1,
+            "username": "g",
             "status": "ready"
         },
         {
-            "id": 3,
-            "username": "g2",
+            "id": 2,
+            "username": "a",
             "status": "ready"
         }
     ]

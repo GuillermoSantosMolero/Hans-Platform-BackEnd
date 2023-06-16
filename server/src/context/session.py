@@ -2,9 +2,8 @@ import json
 from datetime import datetime
 from enum import Enum
 from io import TextIOBase
-import time
+import time, zipfile, os
 from typing import Callable, Dict, Union
-
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
@@ -221,42 +220,56 @@ class Session():
             print("No existe una pregunta asociada a ese id")
 
     def session_start_handler(self) -> bool:
-        print("Hace la llamada a session_start_handler")
-        self.last_session_time = datetime.now()
-        log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
-        log_folder.mkdir(parents=True, exist_ok=True)
-        with open(log_folder / 'session.json', 'w') as f:
-            json.dump({
-                'time': self.last_session_time.isoformat(),
-                'id': self.id,
-                'question': self._question.id,
-                'duration': self.duration
-            }, f, indent=4)
+        if(self.status == Session.Status.WAITING):
+            print("Hace la llamada a session_start_handler")
+            self.last_session_time = datetime.now()
+            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+            log_folder.mkdir(parents=True, exist_ok=True)
+            with open(log_folder / 'session.json', 'w') as f:
+                json.dump({
+                    'time': self.last_session_time.isoformat(),
+                    'id': self.id,
+                    'question': self._question.id,
+                    'duration': self.duration
+                }, f, indent=4)
 
-        self.log_file = open(log_folder / 'log.csv', 'w')
-        self.resume_file = open(log_folder / 'resume.csv', 'w')
-        self.status = Session.Status.ACTIVE
+            self.log_file = open(log_folder / 'log.csv', 'w')
+            self.resume_file = open(log_folder / 'resume.csv', 'w')
+            self.status = Session.Status.ACTIVE
 
     def session_stop_handler(self):
-        def callback(success):
+        def generate_zip():
+                try:
+                    folder_path = self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+                    zip_filename = folder_path + ".zip"
+                    folder_path = "./session_log/" + folder_path
+                    zip_path = os.path.join("./session_log/zips", zip_filename)  # Ruta completa del archivo ZIP
+                    with zipfile.ZipFile(zip_path, "w") as zipf:
+                        for root, _, files in os.walk(folder_path):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                zipf.write(file_path, os.path.relpath(file_path, folder_path))
+                except Exception as e:
+                    print(f"Error al generar el archivo ZIP: {str(e)}")
+        if(self.status == Session.Status.ACTIVE):
+            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+            with open(log_folder / 'session.json', 'r+') as file:
+                data = json.load(file)
+                data['participants'] = ([participant.as_dict for participant in self.participants.values()])
+                file.seek(0)
+                json.dump(data, file, indent=4)
+
+            if self.log_file:
+                self.log_file.close()
+                self.log_file = None
+            if self.resume_file:
+                for a in self.answers:
+                    self.resume_file.write(f"{a},{self.answers[a]}\n")
+                self.resume_file.close()
+                self.resume_file = None
+                self.answers = {}
+            generate_zip()
             self.status = Session.Status.WAITING
-
-        log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
-        with open(log_folder / 'session.json', 'r+') as file:
-            data = json.load(file)
-            data['participants'] = ([participant.as_dict for participant in self.participants.values()])
-            file.seek(0)
-            json.dump(data, file, indent=4)
-
-        if self.log_file:
-            self.log_file.close()
-            self.log_file = None
-        if self.resume_file:
-            for a in self.answers:
-                self.resume_file.write(f"{a},{self.answers[a]}\n")
-            self.resume_file.close()
-            self.resume_file = None
-            self.answers = {}
 
     def participant_update_handler(self, participant_id: int, data: dict):
         position_data = data.get('position', None)
