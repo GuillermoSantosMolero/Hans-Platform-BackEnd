@@ -56,9 +56,7 @@ class SessionCommunicator(MQTTClient):
         self.subscribe(f"swarm/session/{self.session_id}/#", callback)
 
     def control_message_handler(self, client, obj, msg):
-        print(f"El mensaje recibido contiene lo siguiente: {msg.payload}")
         client_id = int(msg.topic.split('/')[-1])
-        print(f"[session {self.session_id}] CONTROL (client={client_id}): {msg.payload}")
 
         payload = json.loads(msg.payload)
         msg_type = payload.get('type', '')
@@ -75,7 +73,6 @@ class SessionCommunicator(MQTTClient):
             #       periodically so the server can determine if they have left without notifying
 
     def control_admin_message_handler(self, client, obj, msg):
-        print(f"El mensaje admin recibido contiene lo siguiente: {msg.payload}")
 
         payload = json.loads(msg.payload)
         msg_type = payload.get('type', '')
@@ -84,7 +81,7 @@ class SessionCommunicator(MQTTClient):
             self.on_setup_question(int(payload.get('question_id','')));
         else:
             if msg_type == 'start':
-                self.on_session_start();
+                self.on_session_start(int(payload.get('targetDate', '')));
             else:
                 if msg_type == 'stop':
                     self.on_session_stop();
@@ -95,7 +92,6 @@ class SessionCommunicator(MQTTClient):
 
     def updates_message_handler(self, client, obj, msg):
         client_id = int(msg.topic.split('/')[-1])
-        print(f"[session {self.session_id}] UPDATE (client={client_id}): {msg.payload}")
         payload = json.loads(msg.payload)
         if self.on_participant_update:
             self.on_participant_update(client_id, payload.get('data', {}))
@@ -213,16 +209,16 @@ class Session():
             checkSessionStatus()
 
     def active_question(self, question: int):
-        print(type(question))
         if question in ctx.AppContext.questions:
             self._question = ctx.AppContext.questions.get(question)
         else:
             print("No existe una pregunta asociada a ese id")
 
-    def session_start_handler(self) -> bool:
+    def session_start_handler(self, targetDate: int) -> bool:
         if(self.status == Session.Status.WAITING):
             print("Hace la llamada a session_start_handler")
             self.last_session_time = datetime.now()
+            self.duration =  round((targetDate-int(self.last_session_time.timestamp()*1000))/1000)
             log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
             log_folder.mkdir(parents=True, exist_ok=True)
             with open(log_folder / 'session.json', 'w') as f:
@@ -279,7 +275,6 @@ class Session():
         if self.log_file:
             self.log_file.write(f"{participant_id},{timestamp},{','.join(str(e) for e in position_data)}\n")
             self.answers[participant_id]=timestamp+","+','.join(str(e) for e in position_data)
-            print(len(self.answers))
 
         # TODO: Maybe the server should not rely the calculation of the central cue
         #       position to the clients, but instead calculate it every X milliseconds
