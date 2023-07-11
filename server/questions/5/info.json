@@ -1,11 +1,11 @@
 {
-    "question": "<question 5 prompt>",
-    "answers": [
-        "Answer 1",
-        "Answer 2",
-        "Answer 3",
-        "Answer 4",
-        "Answer 5"
-    ],
-    "image": "https://picsum.photos/500"
+  "question": "\u00bfQu\u00e9 g\u00e9nero de diatomea es?",
+  "answers": [
+    "Achnanthes",
+    "Cocconeis",
+    "Fragilariopsis",
+    "Navicula",
+    "Nitzschia",
+    "Thalassiosira"
+  ]
 }
