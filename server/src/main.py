@@ -12,7 +12,7 @@ if __name__ == '__main__':
                         help=f"MQTT Broker port. Default: {AppContext.args.mqtt_port}",
                         default=AppContext.args.mqtt_port)
     AppContext.args = parser.parse_args()
-    AppContext.reload_questions()
+    AppContext.reload_collections()
    
     try:
         start_services();

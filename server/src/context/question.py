@@ -12,7 +12,13 @@ class Question:
         self.answers = answers
         self.img_path = img_path
         self.img_is_local = img_is_local
-
+        
+    def __json__(self):
+        return {
+            'id': self.id,
+            'prompt': self.prompt,
+            'answers': self.answers
+        }
     @property
     def as_dict(self):
         return {

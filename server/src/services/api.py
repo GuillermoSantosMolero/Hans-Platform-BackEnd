@@ -115,28 +115,46 @@ class ServerAPI(Thread):
             else:
                 return "Participant not found", 404
             return "Bye"
+        @self.app.route('/api/collection')
+        def api_get_all_collections():
+            collections = AppContext.collections
+            response = []
+            if collections is None:
+                return "Collections not found", 404
+            for key, value in collections.items():
+                response.append(value.as_dict)
+
+            return jsonify(response)
         
-        @self.app.route('/api/question')
-        def api_get_all_questions():
-            questions = AppContext.questions
+        @self.app.route('/api/<string:collection>/question')
+        def api_get_all_questions(collection: str):
+            questions = AppContext.collections.get(collection).questions
             response = []
             if questions is None:
                 return "Questions not found", 404
             for clave, valor in questions.items():
-                response.append(valor.as_dict)
+                response.append(valor)
             return jsonify(response)
 
-        @self.app.route('/api/question/<int:question_id>')
-        def api_question_handle(question_id: int):
-            question = AppContext.questions.get(question_id, None)
+        @self.app.route('/api/question/<string:collection>/<int:question_id>')
+        def api_question_handle(collection: str, question_id: int):
+            collection_obj = AppContext.collections.get(collection)
+            if collection_obj is None:
+                return "Collection not found", 404
+
+            questions = collection_obj.questions
+            if questions is None:
+                return "Questions not found", 404
+
+            question = questions.get(question_id)
             if question is None:
                 return "Question not found", 404
 
-            return jsonify(question.as_dict)
+            return jsonify(question.__json__())
 
-        @self.app.route('/api/question/<int:question_id>/image')
-        def api_question_image_handle(question_id: int):
-            question = AppContext.questions.get(question_id, None)
+        @self.app.route('/api/question/<string:collection>/<int:question_id>/image')
+        def api_question_image_handle(collection: str, question_id: int):
+            question = AppContext.collections.get(collection).questions.get(question_id, None)
             if question is None:
                 return "Question not found", 404
 

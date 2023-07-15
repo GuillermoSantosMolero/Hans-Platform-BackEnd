@@ -5,8 +5,8 @@ from typing import Dict
 from .participant import Participant
 from .question import Question
 from .session import Session
-
-QUESTIONS_FOLDER = Path('questions')
+from .Collection import Collection
+COLLECTION_FOLDER = Path('questions')
 SESSION_LOG_FOLDER = Path('session_log')
 
 class AppContext:
@@ -19,16 +19,16 @@ class AppContext:
     api_service = None
 
     sessions: 'Dict[Session]' = {}
-    questions: 'Dict[Question]' = {}
+    collections: 'Dict[Collection]' = {}
 
     @staticmethod
-    def reload_questions():
-        AppContext.questions = {
-        question.id: question for question in filter(
-            lambda question: question is not None,
+    def reload_collections():
+        AppContext.collections = {
+        collection.id: collection for collection in filter(
+            lambda collection: collection is not None,
             map(
-                lambda question_path: Question.from_folder(question_path),
-                QUESTIONS_FOLDER.iterdir()
+                lambda collection_path: Collection.from_folder(collection_path),
+                COLLECTION_FOLDER.iterdir()
             )
         )
     }

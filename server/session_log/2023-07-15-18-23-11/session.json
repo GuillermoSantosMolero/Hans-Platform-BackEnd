@@ -1,0 +1,19 @@
+{
+    "time": "2023-07-15T18:23:11.113775",
+    "id": 1,
+    "collection": "20230713_111137_Diatoms_July2023_Part3",
+    "question": 47,
+    "duration": 10,
+    "participants": [
+        {
+            "id": 1,
+            "username": "g1",
+            "status": "ready"
+        },
+        {
+            "id": 2,
+            "username": "f1",
+            "status": "ready"
+        }
+    ]
+}

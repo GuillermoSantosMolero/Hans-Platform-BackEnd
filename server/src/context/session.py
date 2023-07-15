@@ -24,7 +24,7 @@ class SessionCommunicator(MQTTClient):
         self.on_participant_ready: Callable[[int], None] = None
         self.on_session_start: Callable[[None]] = None
         self.on_session_stop: Callable[[None]] = None
-        self.on_setup_question: Callable[[int]] = None
+        self.on_setup_question: Callable[[str,int]] = None
         self.on_participant_update: Callable[[int, dict]] = None
 
         MQTTClient.__init__(self, host, port)
@@ -77,8 +77,7 @@ class SessionCommunicator(MQTTClient):
         payload = json.loads(msg.payload)
         msg_type = payload.get('type', '')
         if msg_type == 'setup':
-            print("Se tramita cómo tipo setup")
-            self.on_setup_question(int(payload.get('question_id','')));
+            self.on_setup_question(str(payload.get('collection_id','')),int(payload.get('question_id','')));
         else:
             if msg_type == 'start':
                 self.on_session_start(int(payload.get('targetDate', '')));
@@ -117,6 +116,7 @@ class Session():
         self.id = Session.last_id
         self._status = Session.Status.WAITING
         self._question = None
+        self._collection = None
         self.duration = 10
         self.participants: Dict[Participant] = {}
         self.log_file: TextIOBase = None
@@ -208,11 +208,13 @@ class Session():
             participant.status = Participant.Status.READY
             checkSessionStatus()
 
-    def active_question(self, question: int):
-        if question in ctx.AppContext.questions:
-            self._question = ctx.AppContext.questions.get(question)
+    def active_question(self, collection: str,question: int):
+        if collection in ctx.AppContext.collections:
+            self._collection = ctx.AppContext.collections.get(collection)
+            print(question)
+            self._question = self._collection.questions.get(int(question))
         else:
-            print("No existe una pregunta asociada a ese id")
+            print("No existe una colección asociada a ese id")
 
     def session_start_handler(self, targetDate: int) -> bool:
         if(self.status == Session.Status.WAITING):
@@ -225,7 +227,8 @@ class Session():
                 json.dump({
                     'time': self.last_session_time.isoformat(),
                     'id': self.id,
-                    'question': self._question.id,
+                    'collection': self._collection.id,
+                    'question': (self._question.id - self._collection.firstQuestionId+1),
                     'duration': self.duration
                 }, f, indent=4)
 
