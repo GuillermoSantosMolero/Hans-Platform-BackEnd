@@ -228,7 +228,7 @@ class Session():
                     'time': self.last_session_time.isoformat(),
                     'id': self.id,
                     'collection': self._collection.id,
-                    'question': (self._question.id - self._collection.firstQuestionId+1),
+                    'question': (self._question.prompt),
                     'duration': self.duration
                 }, f, indent=4)
 
