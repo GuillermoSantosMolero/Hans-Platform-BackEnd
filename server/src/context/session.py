@@ -80,7 +80,7 @@ class SessionCommunicator(MQTTClient):
             self.on_setup_question(str(payload.get('collection_id','')),int(payload.get('question_id','')));
         else:
             if msg_type == 'start':
-                self.on_session_start(int(payload.get('targetDate', '')));
+                self.on_session_start(int(payload.get('duration', '')));
             else:
                 if msg_type == 'stop':
                     self.on_session_stop();
@@ -216,11 +216,10 @@ class Session():
         else:
             print("No existe una colección asociada a ese id")
 
-    def session_start_handler(self, targetDate: int) -> bool:
+    def session_start_handler(self, duration: int) -> bool:
         if(self.status == Session.Status.WAITING):
-            print("Hace la llamada a session_start_handler")
+            self.duration =  duration
             self.last_session_time = datetime.now()
-            self.duration =  round((targetDate-int(self.last_session_time.timestamp()*1000))/1000)
             log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
             log_folder.mkdir(parents=True, exist_ok=True)
             with open(log_folder / 'session.json', 'w') as f:
