@@ -4,7 +4,7 @@ import os, zipfile
 from flask import (Flask, jsonify, redirect, request, send_file,
                    send_from_directory)
 from werkzeug.serving import make_server
-
+import boto3
 from src.context import AppContext, Participant, Session
 
 QUESTIONS_FOLDER = Path('questions')
@@ -100,7 +100,7 @@ class ServerAPI(Thread):
             participant = session.add_participant(username)
 
             return jsonify(participant.as_dict)
-
+        # Para poner en offline el status a un participante
         @self.app.route('/api/session/<int:session_id>/participants/<int:participant_id>', methods=['POST'])
         def api_session_remove_participant(session_id: int, participant_id: int):
             session = AppContext.sessions.get(session_id, None)
@@ -115,17 +115,17 @@ class ServerAPI(Thread):
             else:
                 return "Participant not found", 404
             return "Bye"
+        # Devuelve la colección entera
         @self.app.route('/api/collection')
         def api_get_all_collections():
             collections = AppContext.collections
-            response = []
             if collections is None:
                 return "Collections not found", 404
-            for key, value in collections.items():
-                response.append(value.as_dict)
-
-            return jsonify(response)
-        
+            else:
+                # Convertir el conjunto en un diccionario antes de serializarlo en JSON
+                collections_dict = {key: list(value) for key, value in collections.items()}
+                return jsonify(collections_dict)
+        # Devuelve todas las preguntas de una colección
         @self.app.route('/api/<string:collection>/question')
         def api_get_all_questions(collection: str):
             questions = AppContext.collections.get(collection).questions
@@ -135,30 +135,47 @@ class ServerAPI(Thread):
             for clave, valor in questions.items():
                 response.append(valor)
             return jsonify(response)
+        # Devuelve una pregunta en concreto
+        @self.app.route('/api/question/<string:collection>/<string:question_id>')
+        def api_question_handle(collection: str, question_id: str):
+            if collection in AppContext.collections:
+                if question_id in AppContext.collections[collection]:
+                    s3 = boto3.client('s3')
+                    bucket_name = 'hans-platform-collections'
 
-        @self.app.route('/api/question/<string:collection>/<int:question_id>')
-        def api_question_handle(collection: str, question_id: int):
-            collection_obj = AppContext.collections.get(collection)
-            if collection_obj is None:
+                    object_key = f'{collection}/{question_id}/info.json'
+                    try:
+                        response = s3.get_object(Bucket=bucket_name, Key=object_key)
+                        info_json_content = response['Body'].read()
+                        return info_json_content
+                    except Exception as e:
+                        print(f"No se pudo acceder al objeto {object_key}: {str(e)}")
+                else:
+                    return "Question not found", 404
+            else:
                 return "Collection not found", 404
 
-            questions = collection_obj.questions
-            if questions is None:
-                return "Questions not found", 404
 
-            question = questions.get(question_id)
-            if question is None:
-                return "Question not found", 404
+            
+        #Devuelve la imagen asociada a una pregunta
+        @self.app.route('/api/question/<string:collection>/<string:question_id>/image')
+        def api_question_image_handle(collection: str, question_id: str):
+            if collection in AppContext.collections:
+                if question_id in AppContext.collections[collection]:
+                    s3 = boto3.client('s3')
+                    bucket_name = 'hans-platform-collections'
 
-            return jsonify(question.__json__())
-
-        @self.app.route('/api/question/<string:collection>/<int:question_id>/image')
-        def api_question_image_handle(collection: str, question_id: int):
-            question = AppContext.collections.get(collection).questions.get(question_id, None)
-            if question is None:
-                return "Question not found", 404
-
-            return send_file(question.img_path) if question.img_is_local else redirect(question.img_path)
+                    object_key = f'{collection}/{question_id}/img.png'
+                    try:
+                        response = s3.get_object(Bucket=bucket_name, Key=object_key)
+                        img_content = response['Body'].read()
+                        return img_content
+                    except Exception as e:
+                        print(f"No se pudo acceder al objeto {object_key}: {str(e)}")
+                else:
+                    return "Question not found", 404
+            else:
+                return "Collection not found", 404
 
         # Serve client app
         @self.app.route('/', defaults={'path': ''})
@@ -180,7 +197,7 @@ class ServerAPI(Thread):
                 return "Check if your credentials are correct please", 400
             
             return jsonify({"status":"ok"})
-        
+        # Crear una sesión
         @self.app.route('/api/createSession', methods=['POST'])
         def api_create_session():
             if 'user' not in request.json:
@@ -192,6 +209,7 @@ class ServerAPI(Thread):
             session = Session()
             AppContext.sessions[session.id] = session
             return jsonify(session.as_dict)
+        # Descarga un log en concreto
         @self.app.route('/api/downloadLog/<path:zip_filename>')
         def download_log(zip_filename):
             zip_filename+=".zip"
@@ -200,6 +218,7 @@ class ServerAPI(Thread):
                 return send_from_directory(os.path.abspath(os.path.dirname(zip_path)), os.path.basename(zip_path), as_attachment=True)
             else:
                 return "El archivo ZIP no existe", 404
+        # Descarga todos los logs
         @self.app.route('/api/downloadAllLogs')
         def download_all_logs():
             zip_filepath = generate_all_logs_zip()
@@ -227,7 +246,7 @@ class ServerAPI(Thread):
                 print(f"Error al generar el archivo ZIP: {str(e)}")
                 return None
 
-            
+        # Devuelve una lista con los nombres de los logs
         @self.app.route('/api/listLogs')
         def list_logs():
             folder_path = './session_log'

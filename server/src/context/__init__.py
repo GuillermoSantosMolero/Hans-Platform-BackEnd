@@ -1,11 +1,9 @@
 from argparse import Namespace
 from pathlib import Path
 from typing import Dict
-
+import boto3
 from .participant import Participant
-from .question import Question
 from .session import Session
-from .Collection import Collection
 COLLECTION_FOLDER = Path('questions')
 SESSION_LOG_FOLDER = Path('session_log')
 
@@ -19,16 +17,28 @@ class AppContext:
     api_service = None
 
     sessions: 'Dict[Session]' = {}
-    collections: 'Dict[Collection]' = {}
-
+    collections = {}
+    # Configura el cliente de S3
+    s3 = boto3.client('s3')
+    bucket_name = 'hans-platform-collections'
     @staticmethod
     def reload_collections():
-        AppContext.collections = {
-        collection.id: collection for collection in filter(
-            lambda collection: collection is not None,
-            map(
-                lambda collection_path: Collection.from_folder(collection_path),
-                COLLECTION_FOLDER.iterdir()
-            )
-        )
-    }
+        # Listar objetos en el bucket
+        response = AppContext.s3.list_objects_v2(Bucket=AppContext.bucket_name)
+
+        # Procesar objetos y construir el diccionario
+        for obj in response.get('Contents', []):
+            collection_name = obj['Key'].split('/')[0]
+            file_name = obj['Key'].split('/')[1]
+            
+            # Verificar si el nombre del objeto comienza con "Question"
+            if file_name.startswith('Question'):
+                # Obtén el conjunto de objetos para esta colección, o crea uno nuevo si no existe
+                questions = AppContext.collections.get(collection_name, set())
+                
+                # Agrega el nombre del objeto al conjunto
+                questions.add(file_name)
+                
+                # Actualiza el diccionario con el conjunto actualizado
+                AppContext.collections[collection_name] = questions
+
