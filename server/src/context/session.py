@@ -164,6 +164,7 @@ class Session():
             'id': self.id,
             'status': self._status.value,
             'question_id': self._question if self._question else None,
+            'collection_id': self._collection if self._collection else None,
             'duration': self.duration,
         }
 
