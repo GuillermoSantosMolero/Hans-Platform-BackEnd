@@ -7,7 +7,6 @@ from typing import Callable, Dict, Union
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
-from .question import Question
 
 
 class SessionCommunicator(MQTTClient):
@@ -77,7 +76,7 @@ class SessionCommunicator(MQTTClient):
         payload = json.loads(msg.payload)
         msg_type = payload.get('type', '')
         if msg_type == 'setup':
-            self.on_setup_question(str(payload.get('collection_id','')),int(payload.get('question_id','')));
+            self.on_setup_question(str(payload.get('collection_id','')),str(payload.get('question_id','')));
         else:
             if msg_type == 'start':
                 self.on_session_start(int(payload.get('duration', '')));
@@ -164,7 +163,8 @@ class Session():
         return {
             'id': self.id,
             'status': self._status.value,
-            'question_id': self._question.id if self._question else None,
+            'question_id': self._question if self._question else None,
+            'collection_id': self._collection if self._collection else None,
             'duration': self.duration,
         }
 
@@ -208,13 +208,10 @@ class Session():
             participant.status = Participant.Status.READY
             checkSessionStatus()
 
-    def active_question(self, collection: str,question: int):
-        if collection in ctx.AppContext.collections:
-            self._collection = ctx.AppContext.collections.get(collection)
-            print(question)
-            self._question = self._collection.questions.get(int(question))
-        else:
-            print("No existe una colección asociada a ese id")
+    def active_question(self, collection: str,question: str):
+        self._collection = collection
+        self._question = question
+        
 
     def session_start_handler(self, duration: int) -> bool:
         if(self.status == Session.Status.WAITING):
@@ -226,8 +223,8 @@ class Session():
                 json.dump({
                     'time': self.last_session_time.isoformat(),
                     'id': self.id,
-                    'collection': self._collection.id,
-                    'question': (self._question.prompt),
+                    'collection': self._collection,
+                    'question': self._question,
                     'duration': self.duration
                 }, f, indent=4)
 
