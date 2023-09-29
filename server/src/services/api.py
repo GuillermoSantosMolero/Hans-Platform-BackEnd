@@ -7,8 +7,6 @@ from werkzeug.serving import make_server
 import boto3
 from src.context import AppContext, Participant, Session
 
-QUESTIONS_FOLDER = Path('questions')
-
 class ServerAPI(Thread):
 
     def __init__(self, host='0.0.0.0', port=8080):
@@ -57,9 +55,6 @@ class ServerAPI(Thread):
                 question_id = session_data['question_id']
                 if not isinstance(question_id, int):
                     return "Requested question_id must be an integer", 400
-
-                if not (QUESTIONS_FOLDER / str(question_id)).is_dir():
-                    return "Requested question_id doesn't exist", 404
 
                 session.active_question = question_id
 
