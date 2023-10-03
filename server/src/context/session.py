@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import Enum
 from io import TextIOBase
 import time, zipfile, os
-from typing import Callable, Dict, Union
+from typing import Callable, Dict, Optional, Union
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
@@ -99,7 +99,7 @@ class Session():
         Contains all attributes, methods and events to handle a SWARM Session.
     '''
     last_id = 0
-
+    regular_expresion= '%Y-%m-%d-%H-%M-%S'
     class Status(Enum):
         WAITING = 'waiting' # Waiting for clients to join
         ACTIVE = 'active'   # The Swarm Session is active (answering a question)
@@ -118,8 +118,8 @@ class Session():
         self._collection = None
         self.duration = 10
         self.participants: Dict[Participant] = {}
-        self.log_file: TextIOBase = None
-        self.resume_file: TextIOBase = None
+        self.log_file: Optional[TextIOBase] = None
+        self.resume_file: Optional[TextIOBase] = None
         self.last_session_time = None
         self.target_date = None
         self.answers = {}
@@ -169,18 +169,18 @@ class Session():
         }
 
     def add_participant(self, username: str):
-        inList = False
-        participantReturn = None
+        in_list = False
+        participant_return = None
         for participant in self.participants.values():
             if(participant.username.lower() == username.lower()):
-                inList = True
+                in_list = True
                 participant.status = Participant.Status.JOINED
-                participantReturn = participant
-        if(inList != True):
+                participant_return = participant
+        if(in_list != True):
             participant = Participant(username)
             self.participants[participant.id] = participant
-            participantReturn = participant
-        return participantReturn
+            participant_return = participant
+        return participant_return
 
     def remove_participant(self, participant_id: int):
         participant = self.participants.get(participant_id, None)
@@ -194,7 +194,7 @@ class Session():
         if participant is None:
             print(f"ERROR: Participant [id={participant_id}] not found in Session [id={self.id}]")
             return
-        def checkSessionStatus ():
+        def check_session_status ():
             if(self.status == Session.Status.ACTIVE and self.target_date is not None):
                 self.communicator.publish(
                     f'swarm/session/{self.id}/control',
@@ -206,7 +206,7 @@ class Session():
             )
         if(participant.status == Participant.Status.JOINED):
             participant.status = Participant.Status.READY
-            checkSessionStatus()
+            check_session_status()
 
     def active_question(self, collection: str,question: str):
         self._collection = collection
@@ -217,7 +217,7 @@ class Session():
         if(self.status == Session.Status.WAITING):
             self.duration =  duration
             self.last_session_time = datetime.now()
-            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime(self.regular_expresion)
             log_folder.mkdir(parents=True, exist_ok=True)
             with open(log_folder / 'session.json', 'w') as f:
                 json.dump({
@@ -235,7 +235,7 @@ class Session():
     def session_stop_handler(self):
         def generate_zip():
                 try:
-                    folder_path = self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+                    folder_path = self.last_session_time.strftime(self.regular_expresion)
                     zip_filename = folder_path + ".zip"
                     folder_path = "./session_log/" + folder_path
                     zip_path = os.path.join("./session_log/zips", zip_filename)  # Ruta completa del archivo ZIP
@@ -247,7 +247,7 @@ class Session():
                 except Exception as e:
                     print(f"Error al generar el archivo ZIP: {str(e)}")
         if(self.status == Session.Status.ACTIVE):
-            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime('%Y-%m-%d-%H-%M-%S')
+            log_folder = ctx.SESSION_LOG_FOLDER / self.last_session_time.strftime(self.regular_expresion)
             with open(log_folder / 'session.json', 'r+') as file:
                 data = json.load(file)
                 data['participants'] = ([participant.as_dict for participant in self.participants.values()])

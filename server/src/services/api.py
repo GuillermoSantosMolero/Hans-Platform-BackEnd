@@ -8,15 +8,18 @@ import boto3
 from src.context import AppContext, Participant, Session
 
 class ServerAPI(Thread):
-
+    
     def __init__(self, host='0.0.0.0', port=8080):
+        SESSION_NOT_FOUND = "Session not found"
+        INVALID_REQUEST = "Invalid request"
+        INVALID_CREDENTIALS="Check if your credentials are correct please"
         Thread.__init__(self)
         self.app = Flask(__name__, static_folder='../../../client/build')
         @self.app.route('/api/session/<int:session_id>', methods=['GET'])
         def api_session_handle_get(session_id: int):
             session = AppContext.sessions.get(session_id, None)
             if session is None:
-                return "Session not found", 404
+                return SESSION_NOT_FOUND, 404
 
             return jsonify(session.as_dict)
 
@@ -24,11 +27,11 @@ class ServerAPI(Thread):
         def api_get_all_sessions():
             print(request.json['user'])
             if 'user' not in request.json:
-                return "Invalid request", 400
+                return INVALID_REQUEST, 400
             username = request.json['user']
             password = request.json['pass']
             if(username!="admin" or password!="admin"):
-                return "Check if your credentials are correct please", 400
+                return INVALID_CREDENTIALS, 400
             
             return jsonify([session.as_dict for session in AppContext.sessions.values()])
 
@@ -36,7 +39,7 @@ class ServerAPI(Thread):
         def api_edit_session(session_id: int):
             session = AppContext.sessions.get(session_id, None)
             if session is None:
-                return "Session not found", 404
+                return SESSION_NOT_FOUND, 404
 
             session_data = request.json
             if any(
@@ -69,26 +72,26 @@ class ServerAPI(Thread):
         @self.app.route('/api/session/<int:session_id>/allParticipants', methods=['POST'])
         def api_session_get_all_participants(session_id: int):
             if 'user' not in request.json:
-                return "Invalid request", 400
+                return INVALID_REQUEST, 400
             username = request.json['user']
             password = request.json['pass']
             if(username!="admin" or password!="admin"):
-                return "Check if your credentials are correct please", 400
+                return INVALID_CREDENTIALS, 400
             session = AppContext.sessions.get(session_id, None)
             if session is None:
-                return "Session not found", 404
+                return SESSION_NOT_FOUND, 404
             return jsonify([participant.as_dict for participant in session.participants.values()])
 
         # función que escucha la petición del componente sessionLogin
         @self.app.route('/api/session/<int:session_id>/participants', methods=['POST'])
         def api_session_add_participant(session_id: int):
             if 'user' not in request.json:
-                return "Invalid request", 400
+                return INVALID_REQUEST, 400
             username = request.json['user']
 
             session = AppContext.sessions.get(session_id, None)
             if session is None:
-                return "Session not found", 404
+                return SESSION_NOT_FOUND, 404
             if any(username.lower() == participant.username.lower() and participant.status!=Participant.Status.OFFLINE for participant in session.participants.values()):
                 return "Participant already joined session", 400
 
@@ -100,7 +103,7 @@ class ServerAPI(Thread):
         def api_session_remove_participant(session_id: int, participant_id: int):
             session = AppContext.sessions.get(session_id, None)
             if session is None:
-                return "Session not found", 404
+                return SESSION_NOT_FOUND, 404
 
             if any(participant_id == participant.id for participant in session.participants.values()):
                 if any(participant_id == participant.id and participant.status==Participant.Status.OFFLINE for participant in session.participants.values()):
@@ -185,22 +188,22 @@ class ServerAPI(Thread):
         @self.app.route('/api/admin/login', methods=['POST'])
         def api_admin_login():
             if 'user' not in request.json:
-                return "Invalid request", 400
+                return INVALID_REQUEST, 400
             username = request.json['user']
             password = request.json['pass']
             if(username!="admin" or password!="admin"):
-                return "Check if your credentials are correct please", 400
+                return INVALID_CREDENTIALS, 400
             
             return jsonify({"status":"ok"})
         # Crear una sesión
         @self.app.route('/api/createSession', methods=['POST'])
         def api_create_session():
             if 'user' not in request.json:
-                return "Invalid request", 400
+                return INVALID_REQUEST, 400
             username = request.json['user']
             password = request.json['pass']
             if(username!="admin" or password!="admin"):
-                return "Check if your credentials are correct please", 400
+                return INVALID_CREDENTIALS, 400
             session = Session()
             AppContext.sessions[session.id] = session
             return jsonify(session.as_dict)

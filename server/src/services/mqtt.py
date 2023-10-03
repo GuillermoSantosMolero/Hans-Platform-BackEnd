@@ -28,7 +28,7 @@ class BrokerWrapper:
         tmp_file = Path('tmp/mosquitto.conf')
         tmp_file.parent.mkdir(parents=True, exist_ok=True)
         with open(tmp_file, 'w') as f:
-            f.write(f"listener 9002\n")
+            f.write("listener 9002\n")
             f.write("protocol mqtt\n")
             f.write('\n')
             f.write(f"listener {self.port}\n")
