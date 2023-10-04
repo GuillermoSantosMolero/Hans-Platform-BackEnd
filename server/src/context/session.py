@@ -269,12 +269,18 @@ class Session():
     def participant_update_handler(self, participant_id: int, data: dict):
         position_data = data.get('position', None)
         timestamp = data.get('timeStamp', None)
+        sum_position = 0
+        for position in position_data:
+            sum_position += position
+        if sum_position > 1:
+            for i in range(len(position_data)):
+                position_data[i] = position_data[i] / sum_position
+        
         if not position_data:
             return
         if self.log_file:
             self.log_file.write(f"{participant_id},{timestamp},{','.join(str(e) for e in position_data)}\n")
-            self.answers[participant_id]=timestamp+","+','.join(str(e) for e in position_data)
-
+            self.answers[participant_id] = timestamp + "," + ','.join(str(e) for e in position_data)
         # TODO: Maybe the server should not rely the calculation of the central cue
         #       position to the clients, but instead calculate it every X milliseconds
         #       and send it over the topic 'swarm/session/<session-id>/updates' (which
