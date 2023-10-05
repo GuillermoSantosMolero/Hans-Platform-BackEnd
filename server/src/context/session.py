@@ -123,6 +123,17 @@ class Session():
         self.last_session_time = None
         self.target_date = None
         self.answers = {}
+        # Obtén las claves (nombres de las colecciones) del diccionario de colecciones
+        collection_keys = list(ctx.AppContext.collections.keys())
+        # Verifica si hay al menos una colección en el diccionario
+        if collection_keys:
+            # Obtén el conjunto de objetos (preguntas) para la primera colección
+            first_collection_questions = ctx.AppContext.collections[collection_keys[0]]
+            # Si hay al menos una pregunta en la colección
+            if first_collection_questions:
+                self._collection = collection_keys[0]
+                # Obtén el nombre de la primera pregunta (objeto)
+                self._question = list(first_collection_questions)[0]
 
         self.communicator = SessionCommunicator(self.id, port=ctx.AppContext.mqtt_broker.port)
         self.communicator.on_participant_ready = self.participant_ready_handler

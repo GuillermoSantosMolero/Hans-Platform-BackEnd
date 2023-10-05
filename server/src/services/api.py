@@ -113,7 +113,7 @@ class ServerAPI(Thread):
             else:
                 return "Participant not found", 404
             return "Bye"
-        # Devuelve la colección entera
+        # Devuelve las colecciones enteras
         @self.app.route('/api/collection')
         def api_get_all_collections():
             collections = AppContext.collections
@@ -123,16 +123,6 @@ class ServerAPI(Thread):
                 # Convertir el conjunto en un diccionario antes de serializarlo en JSON
                 collections_dict = {key: list(value) for key, value in collections.items()}
                 return jsonify(collections_dict)
-        # Devuelve todas las preguntas de una colección
-        @self.app.route('/api/<string:collection>/question')
-        def api_get_all_questions(collection: str):
-            questions = AppContext.collections.get(collection).questions
-            response = []
-            if questions is None:
-                return "Questions not found", 404
-            for clave, valor in questions.items():
-                response.append(valor)
-            return jsonify(response)
         # Devuelve una pregunta en concreto
         @self.app.route('/api/question/<string:collection>/<string:question_id>')
         def api_question_handle(collection: str, question_id: str):
