@@ -7,7 +7,7 @@ from typing import Callable, Dict, Optional, Union
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
-
+import re
 
 class SessionCommunicator(MQTTClient):
     class Status(Enum):
@@ -20,7 +20,8 @@ class SessionCommunicator(MQTTClient):
         self._status = SessionCommunicator.Status.DISCONNECTED
 
         self.on_status_changed: Callable[[SessionCommunicator.Status], None] = None
-        self.on_participant_ready: Callable[[int], None] = None
+        self.on_participant_ready: Callable[[str,int], None] = None
+        self.on_participant_leave: Callable[[int,int], None] = None
         self.on_session_start: Callable[[None]] = None
         self.on_session_stop: Callable[[None]] = None
         self.on_setup_question: Callable[[str,int]] = None
@@ -56,21 +57,15 @@ class SessionCommunicator(MQTTClient):
 
     def control_message_handler(self, client, obj, msg):
         client_id = int(msg.topic.split('/')[-1])
-
         payload = json.loads(msg.payload)
+        session_id = int(msg.topic.split('/')[-3])
         msg_type = payload.get('type', '')
         if msg_type == 'ready':
-            # TODO: Participants should also notify their configured question_id and duration,
-            #       so the server can check if their ready state matches de current session or
-            #       is older (i.e. the question has changed twice and the participant still has
-            #       the previous question configured)
-            #       Message format: {"type": "ready", "question_id": 1, "duration": 30}
             self.on_participant_ready(client_id)
+        elif msg_type == 'leave':
+            self.on_participant_leave(session_id,client_id)
         else:
             print("Unknown message received in control topic")
-            # TODO: Implement a 'keep-alive' mechanism: participants must send keep-alive messages
-            #       periodically so the server can determine if they have left without notifying
-
     def control_admin_message_handler(self, client, obj, msg):
 
         payload = json.loads(msg.payload)
@@ -137,6 +132,7 @@ class Session():
 
         self.communicator = SessionCommunicator(self.id, port=ctx.AppContext.mqtt_broker.port)
         self.communicator.on_participant_ready = self.participant_ready_handler
+        self.communicator.on_participant_leave = self.participant_leave_handler
         self.communicator.on_participant_update = self.participant_update_handler
         self.communicator.on_session_start = self.session_start_handler
         self.communicator.on_setup_question = self.active_question
@@ -218,6 +214,10 @@ class Session():
         if(participant.status == Participant.Status.JOINED):
             participant.status = Participant.Status.READY
             check_session_status()
+
+    def participant_leave_handler(self, session_id: int, participant_id: int):
+        session = ctx.AppContext.sessions.get(session_id, None)
+        session.remove_participant(participant_id)
 
     def active_question(self, collection: str,question: str):
         self._collection = collection
