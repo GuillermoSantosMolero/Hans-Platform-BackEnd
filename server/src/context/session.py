@@ -282,10 +282,10 @@ class Session():
         timestamp = data.get('timeStamp', None)
         if position_data and timestamp:
             sum_position = 0
-            for position in position_data:
+            for i, position in enumerate(position_data):
                 if position < 0:
-                    position = 0
-                sum_position += position
+                    position_data[i] = 0
+                sum_position += position_data[i]
             if sum_position > 1:
                 for i in range(len(position_data)):
                     position_data[i] = position_data[i] / sum_position
