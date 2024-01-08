@@ -283,6 +283,8 @@ class Session():
         if position_data and timestamp:
             sum_position = 0
             for position in position_data:
+                if position < 0:
+                    position = 0
                 sum_position += position
             if sum_position > 1:
                 for i in range(len(position_data)):
