@@ -245,7 +245,62 @@ class ServerAPI(Thread):
         self.server = make_server(host, port, self.app, threaded=True)
         self.ctx = self.app.app_context()
         self.ctx.push()
-        
+        # Descarga todas las trayectorias
+        @self.app.route('/api/downloadAllTrajectories')
+        def download_all_trajectories():
+            zip_filepath = generate_all_trajectories_zip()
+
+            if zip_filepath and os.path.isfile(zip_filepath):
+                return send_from_directory(os.path.abspath(os.path.dirname(zip_filepath)), os.path.basename(zip_filepath), as_attachment=True)
+            else:
+                return "Error al generar el archivo ZIP", 500
+        def generate_all_trajectories_zip():
+            try:
+                zip_filename = "AllTrajectories.zip"
+                folder_path = "./trajectories"
+                zip_path = os.path.join(folder_path, zip_filename)  # Ruta completa del archivo ZIP
+
+                # Eliminar el archivo ZIP si ya existe
+                if os.path.isfile(zip_path):
+                    os.remove(zip_path)
+
+                with zipfile.ZipFile(zip_path, "w") as zipf:
+                    for root, _, files in os.walk(folder_path):
+                        for file in files:
+                            file_path = os.path.join(root, file)
+                            # Verificar si el archivo que se va a agregar es el propio archivo ZIP
+                            if file_path != zip_path:
+                                zipf.write(file_path, os.path.relpath(file_path, folder_path))
+
+                return zip_path
+            except Exception as e:
+                print(f"Error al generar el archivo ZIP: {str(e)}")
+                return None
+        # Borra todas las trayectorias
+        @self.app.route('/api/deleteAllTrajectories')
+        def delete_all_trajectories():
+            folder_path = "./trajectories"
+
+            try:
+                # Verificar si la carpeta existe
+                if os.path.exists(folder_path):
+                    # Eliminar todo el contenido de la carpeta
+                    for filename in os.listdir(folder_path):
+                        file_path = os.path.join(folder_path, filename)
+                        try:
+                            if os.path.isfile(file_path) or os.path.islink(file_path):
+                                os.unlink(file_path)
+                            elif os.path.isdir(file_path):
+                                shutil.rmtree(file_path)
+                        except Exception as e:
+                            print(f"No se pudo borrar {file_path}: {e}")
+                else:
+                    print("La carpeta no existe.")
+
+            except Exception as e:
+                return "Error deleting trajectories", 500
+            return jsonify({"status":"ok"})
+
     def run(self):
         self.server.serve_forever()
 

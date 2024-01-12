@@ -7,6 +7,7 @@ from typing import Callable, Dict, Optional, Union
 import src.context as ctx
 from .mqtt_utils import MQTTClient
 from .participant import Participant
+from .position_format_utils import convert_trajectory_files
 import re
 
 class SessionCommunicator(MQTTClient):
@@ -274,6 +275,7 @@ class Session():
                 self.resume_file.close()
                 self.resume_file = None
                 self.answers = {}
+            convert_trajectory_files(log_folder)
             generate_zip()
             self.status = Session.Status.WAITING
 
