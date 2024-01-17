@@ -78,7 +78,7 @@ class SessionCommunicator(MQTTClient):
                 self.on_session_start(int(payload.get('duration', '')));
             else:
                 if msg_type == 'stop':
-                    self.on_session_stop();
+                    self.on_session_stop(payload.get('mode', ''));
                 else:
                     print("Unknown message received in control topic")
                     # TODO: Implement a 'keep-alive' mechanism: participants must send keep-alive messages
@@ -244,7 +244,7 @@ class Session():
             self.resume_file = open(log_folder / 'resume.csv', 'w')
             self.status = Session.Status.ACTIVE
 
-    def session_stop_handler(self):
+    def session_stop_handler(self,mode: str):
         def generate_zip():
                 try:
                     folder_path = self.last_session_time.strftime(self.regular_expresion)
@@ -275,7 +275,8 @@ class Session():
                 self.resume_file.close()
                 self.resume_file = None
                 self.answers = {}
-            convert_trajectory_files(log_folder)
+            if mode == 'trajectories':
+                convert_trajectory_files(log_folder)
             generate_zip()
             self.status = Session.Status.WAITING
 

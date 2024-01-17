@@ -1,11 +1,14 @@
 from pathlib import Path
 from threading import Thread
-import os, zipfile
-from flask import (Flask, jsonify, redirect, request, send_file,
-                   send_from_directory)
+import os
+import zipfile
+import shutil
+import re
+from flask import Flask, jsonify, send_from_directory, request
 from werkzeug.serving import make_server
 import boto3
 from src.context import AppContext, Participant, Session
+
 
 class ServerAPI(Thread):
     
@@ -241,10 +244,6 @@ class ServerAPI(Thread):
             logs = [name for name in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, name))]
 
             return jsonify(logs=logs)
-        
-        self.server = make_server(host, port, self.app, threaded=True)
-        self.ctx = self.app.app_context()
-        self.ctx.push()
         # Descarga todas las trayectorias
         @self.app.route('/api/downloadAllTrajectories')
         def download_all_trajectories():
@@ -280,6 +279,8 @@ class ServerAPI(Thread):
         @self.app.route('/api/deleteAllTrajectories')
         def delete_all_trajectories():
             folder_path = "./trajectories"
+            session_path = "./session_log"
+            zip_path = "./session_log/zips"
 
             try:
                 # Verificar si la carpeta existe
@@ -288,10 +289,32 @@ class ServerAPI(Thread):
                     for filename in os.listdir(folder_path):
                         file_path = os.path.join(folder_path, filename)
                         try:
-                            if os.path.isfile(file_path) or os.path.islink(file_path):
+                            if os.path.isfile(file_path) and filename.endswith(".txt"):
+                                # Extraer la fecha del nombre del archivo usando una expresión regular
+                                match = re.search(r"(\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2})", filename)
+                                if match:
+                                    date_string = match.group(1)
+
+                                    # Construir el nombre de la carpeta basado en la fecha
+                                    subfolder_name = os.path.join(session_path, date_string)
+
+                                    # Verificar si la carpeta existe y eliminarla
+                                    if os.path.exists(subfolder_name):
+                                        shutil.rmtree(subfolder_name)
+                                    else:
+                                        print(f"La carpeta {subfolder_name} no existe.")
+                                    # Eliminar archivos .zip de la tercera carpeta
+                                    if os.path.exists(zip_path):
+                                        for zip_filename in os.listdir(zip_path):
+                                            zip_file_path = os.path.join(zip_path, zip_filename)
+                                            try:
+                                                if os.path.isfile(zip_file_path) and zip_filename == date_string + ".zip":
+                                                    os.unlink(zip_file_path)
+                                            except Exception as e:
+                                                print(f"No se pudo borrar {zip_file_path}: {e}")
+                                    else:
+                                        print("La tercera carpeta no existe.")
                                 os.unlink(file_path)
-                            elif os.path.isdir(file_path):
-                                shutil.rmtree(file_path)
                         except Exception as e:
                             print(f"No se pudo borrar {file_path}: {e}")
                 else:
@@ -299,8 +322,12 @@ class ServerAPI(Thread):
 
             except Exception as e:
                 return "Error deleting trajectories", 500
-            return jsonify({"status":"ok"})
+            return jsonify({"status": "ok"})
 
+
+        self.server = make_server(host, port, self.app, threaded=True)
+        self.ctx = self.app.app_context()
+        self.ctx.push()
     def run(self):
         self.server.serve_forever()
 
