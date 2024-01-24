@@ -244,6 +244,34 @@ class ServerAPI(Thread):
             logs = [name for name in os.listdir(folder_path) if os.path.isdir(os.path.join(folder_path, name))]
 
             return jsonify(logs=logs)
+        #Borra todos los logs
+        @self.app.route('/api/deleteAllLogs')
+        def delete_all_logs():
+            session_log_path = "./session_log"
+            zips_path = os.path.join(session_log_path, "zips")
+
+            try:
+                # Eliminar archivos dentro de ./session_log
+                for filename in os.listdir(session_log_path):
+                    file_path = os.path.join(session_log_path, filename)
+                    if os.path.isfile(file_path) and filename != "AllLogs.zip":
+                        os.unlink(file_path)
+
+                # Eliminar carpetas dentro de ./session_log, excepto "zips"
+                for folder_name in os.listdir(session_log_path):
+                    folder_path = os.path.join(session_log_path, folder_name)
+                    if os.path.isdir(folder_path) and folder_name != "zips":
+                        shutil.rmtree(folder_path)
+
+                # Eliminar archivos dentro de ./session_log/zips, excepto "AllLogs.zip"
+                for filename in os.listdir(zips_path):
+                    file_path = os.path.join(zips_path, filename)
+                    if os.path.isfile(file_path) and filename != "AllLogs.zip":
+                        os.unlink(file_path)
+
+            except Exception:
+                return "Error deleting logs", 500
+            return jsonify({"status": "ok"})
         # Descarga todas las trayectorias
         @self.app.route('/api/downloadAllTrajectories')
         def download_all_trajectories():
